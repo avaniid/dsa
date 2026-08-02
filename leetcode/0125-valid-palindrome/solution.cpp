@@ -1,18 +1,28 @@
 class Solution {
 public:
     bool isPalindrome(string s) {
-
+        
         string cleaned = "";
 
-        for (char ch : s) {
-            if (isalnum(ch)) {
-                cleaned += tolower(ch);
+        for (int i = 0; i < s.length(); i++) {
+            if (isalnum(s[i])) {
+                cleaned += tolower(s[i]);
             }
         }
 
-        string reversed = cleaned;
-        reverse(reversed.begin(), reversed.end());
+        int left = 0;
+        int right = cleaned.length() - 1;
 
-        return cleaned == reversed;
+        while (left < right) {
+
+            if (cleaned[left] != cleaned[right]) {
+                return false;
+            }
+
+            left++;
+            right--;
+        }
+
+        return true;
     }
 };
