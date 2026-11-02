@@ -21,5 +21,6 @@ jobs:
           leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
           leetcode-session: ${{ secrets.LEETCODE_SESSION }}
           destination-folder: leetcode
+          filter-duplicate-secs: 3600
           verbose: true
           commit-header: "[LeetCode Sync]"
