@@ -6,6 +6,7 @@ on:
 
   schedule:
     - cron: "0 */6 * * *"
+
 permissions:
   contents: write
 
@@ -14,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Existing LeetCode sync — preserved
       - name: Sync LeetCode submissions
         uses: joshcai/leetcode-sync@v1.7
         with:
@@ -24,3 +26,71 @@ jobs:
           filter-duplicate-secs: 3600
           verbose: true
           commit-header: "[LeetCode Sync]"
+
+      # Get the updated repository
+      - name: Checkout updated repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      # Send LeetCode problems to Google Sheets
+      - name: Update DSA Google Sheet
+        env:
+          SHEETS_URL: ${{ secrets.SHEETS_WEB_APP_URL }}
+          SHEETS_SECRET: ${{ secrets.SHEETS_WEBHOOK_SECRET }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import urllib.request
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          root = Path("leetcode")
+
+          if not root.exists():
+              print("No LeetCode folder found.")
+              raise SystemExit(0)
+
+          folders = sorted(
+              p for p in root.iterdir()
+              if p.is_dir() and (p / "solution.cpp").exists()
+          )
+
+          print(f"Found {len(folders)} synced problems.")
+
+          for folder in folders:
+              slug = folder.name
+              parts = slug.split("-", 1)
+
+              if len(parts) != 2:
+                  print(f"Skipping unexpected folder: {slug}")
+                  continue
+
+              problem_slug = parts[1]
+              problem_name = problem_slug.replace("-", " ").title()
+
+              payload = {
+                  "secret": os.environ["SHEETS_SECRET"],
+                  "externalId": f"leetcode-folder:{slug}",
+                  "source": "leetcode",
+                  "problem": problem_name,
+                  "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                  "attemptType": "Initial solve",
+                  "outcome": "",
+                  "platform": "LeetCode",
+                  "problemUrl": f"https://leetcode.com/problems/{problem_slug}/",
+                  "notes": "Automatically synced — LeetCode Accepted"
+              }
+
+              request = urllib.request.Request(
+                  os.environ["SHEETS_URL"],
+                  data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json"},
+                  method="POST"
+              )
+
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+                  print(f"{problem_name}: {result}")
+          PY
